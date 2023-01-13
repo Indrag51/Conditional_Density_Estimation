@@ -1,4 +1,4 @@
-source("bivariate_all_function_modified_4.R")
+source("bivariate_all_function_modified_4.R") 
 library(ddalpha)
 #devtools::install_github("tpospisi/NNKCDE/r")
 #library(NNKCDE)
