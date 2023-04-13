@@ -132,14 +132,16 @@ for(tt in 1:repetition){
     density.array<- PostFun_loc(XI_mat, grid, X_new, BETA_mat, TAU_mat,
                                 location = location.1[i],
                                 test_knots = test_knots)
+    density_q2.array = apply(density.array, MARGIN = c(1,3), mean)
     for(j in 1:nrow(X_new)){
       a=a.vec[j]
       a1=a1.vec[j]
       #density.true<- dbeta(grid,exp(2*a+1), 8*(2.25-location.1[i]/ncol(theta.true)))
       density.true<- dbeta(grid,16/(1 + exp(a)),32*(location.1[i]/ncol(theta.true))^0.5)/(1+exp(-a1)) +
         dbeta(grid,32*(sin(location.1[i]/ncol(theta.true)))^{3/4},8*a)/(1+exp(a1))
-      density<- density.array[,,j]
-      density_q2<- apply(density,1,function(x) {quantile(x,0.50)})
+      # density<- density.array[,,j]
+      # density_q2<- apply(density,1,function(x) {quantile(x,0.50)})
+      density_q2<- density_q2.array[,j]
       discrip1[j] = (sum((sqrt(density.true) - sqrt(density_q2))^2) * (range(grid)[2]-range(grid)[1])/length(grid)) ###Proxy hellinger distance
       if(j%%20==0) {print(paste("for individual =",j))}
     }
