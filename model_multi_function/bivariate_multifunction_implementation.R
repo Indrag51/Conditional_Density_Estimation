@@ -11,7 +11,7 @@ library(xgboost)
 ##################################################
 ##### Data Generation & Initialization ###########
 ##################################################
-n1=200
+n1=250
 p1=5
 K1=20
 n2 = 0.2 * n1 ## test set
@@ -37,9 +37,12 @@ theta_func<- function(j,x){
     return("wrong input")
 }
 theta.true<-matrix(0,nr=p1,nc=K1)
-for(j in 1:p1){
-  theta.true[j,]<- (matrix(theta_func(j, seq(0,1,length.out = K1)),nr=1))
-}
+# for(j in 1:p1){
+#   theta.true[j,]<- (matrix(theta_func(j, seq(0,1,length.out = K1)),nr=1))
+# }
+for(i in 1:K1)
+  for(j in 1:p1)
+    theta.true[j,i] = 1.5 - exp(i/K1 + j/p1 - 0.75)
 
 set.seed(842)
 X1<- matrix(runif(n1*p1,-5,5),nc=p1)
@@ -56,21 +59,22 @@ W_1 <- 2*(W_0-0.5) #Centralize the probability
 y_vec<-numeric(nrow(X2) * ncol(theta.true))
 for (j in 1:ncol(theta.true)) {
   for(i in 1:nrow(X2)){
-    a3 = W_0[(j-1)*nrow(X2) + i]
-    a4 = W_1[(j-1)*nrow(X2) + i]
-    a5 = runif(1)
-    if(a5<= 1/(1+exp(a4))){
-      y_vec[(j-1)*nrow(X2) + i] = rbeta(1,10*(1+exp(-j/ncol(theta.true)))^{-1},
-                                        30*(0.25+log(1+a3)))
-    }
-    # if(a5<= 1/(1+exp(a4)) & a5> 0.5/(1+exp(a4))){
-    #   y_vec[(j-1)*nrow(X2) + i] = rbeta(1,5*(0.25+exp(1+a3)),
-    #                                     20*(1+(j/ncol(theta.true)))^{-1})
+    # a3 = W_0[(j-1)*nrow(X2) + i]
+    # a4 = W_1[(j-1)*nrow(X2) + i]
+    # a5 = runif(1)
+    # if(a5<= 1/(1+exp(a4))){
+    #   y_vec[(j-1)*nrow(X2) + i] = rbeta(1,10*(1+exp(-j/ncol(theta.true)))^{-1},
+    #                                     30*(0.25+log(1+a3)))
     # }
-    if(a5> 1/(1+exp(a4))){
-      y_vec[(j-1)*nrow(X2) + i] = rbeta(1,8*(j/ncol(theta.true)+1)^{1/2},10*sin(a3))
-    }
-    
+    # # if(a5<= 1/(1+exp(a4)) & a5> 0.5/(1+exp(a4))){
+    # #   y_vec[(j-1)*nrow(X2) + i] = rbeta(1,5*(0.25+exp(1+a3)),
+    # #                                     20*(1+(j/ncol(theta.true)))^{-1})
+    # # }
+    # if(a5> 1/(1+exp(a4))){
+    #   y_vec[(j-1)*nrow(X2) + i] = rbeta(1,8*(j/ncol(theta.true)+1)^{1/2},10*sin(a3))
+    # }
+    y_vec[(j-1)*nrow(X2) + i]<- ifelse(runif(1)<=1/(1 + exp(-W_1[(j-1)*nrow(X2) + i])),rbeta(1,16/(1 + exp(W_0[(j-1)*nrow(X2) + i])),32*(j/ncol(theta.true))^0.5),
+                                       rbeta(1,32*(sin(j/ncol(theta.true)))^{3/4},8*W_0[(j-1)*nrow(X2) + i]))
     # y_vec[(j-1)*nrow(X2) + i]<-ifelse(runif(1)<=1/(1+exp(W_1[(j-1)*nrow(X2) + i])),
     #                                   rbeta(1,10*exp((j/ncol(theta.true)-0.5)/2),4*j^{3/4}),
     #                                   rbeta(1,32*sin(W_0[(j-1)*nrow(X2) + i]), 8*(j/ncol(theta.true) +1)^{1/2}))
@@ -89,7 +93,7 @@ for (j in 1:ncol(theta.true)) {
   }
 }
 y1<- matrix(y_vec,ncol = ncol(theta.true))
-test_knots = seq(0,1, length.out = 21)
+test_knots = seq(0,1, length.out = 51)
 Nplus = length(test_knots)
 X = X_train <- X2[-index.sample,]
 X_test <- X2[index.sample,]
@@ -108,8 +112,8 @@ beta<- matrix(as.vector(mvtnorm::rmvnorm(1,mean = rep(0, ncol(X)*ncol(y)),sigma 
 beta<- t(t(beta)/sqrt(colSums(beta * beta)))
 #######################
 #######################
-nmcmc=50
-burnin=150
+nmcmc=5000
+burnin=5000
 thining=5
 run1<- get_updates(xi=xi,beta = beta,X=X,y=y,
                    test_knots = test_knots,
@@ -147,10 +151,11 @@ for(i in 1:length(location.1))
     #   dbeta(grid,32*sin(a),8*(location.1[i]/ncol(theta.true)+1)^{1/2})*1/(1+exp(-a1))
     # density.true<- dbeta(grid,10*exp((location.1[i]/ncol(theta.true) - 0.5)/2),4*location.1[i]^{3/4})*1/(1+exp(a1)) +
     #   dbeta(grid,32*sin(a),8*(location.1[i]/ncol(theta.true)+1)^{1/2})*1/(1+exp(-a1))
-    
-    ##generator2
-    density.true<- dbeta(grid,10*(1+exp(-location.1[i]/ncol(theta.true)))^{-1},30*(0.25+log(1+a)))*1/(1+exp(a1)) +
-      dbeta(grid,8*(location.1[i]/ncol(theta.true)+1)^{1/2},10*sin(a))*1/(1+exp(-a1))  
+    density.true<- dbeta(grid,16/(1 + exp(a)),32*(location.1[i]/ncol(theta.true))^0.5)/(1+exp(-a1)) +
+      dbeta(grid,32*(sin(location.1[i]/ncol(theta.true)))^{3/4},8*a)/(1+exp(a1))
+    # ##generator2
+    # density.true<- dbeta(grid,10*(1+exp(-location.1[i]/ncol(theta.true)))^{-1},30*(0.25+log(1+a)))*1/(1+exp(a1)) +
+    #   dbeta(grid,8*(location.1[i]/ncol(theta.true)+1)^{1/2},10*sin(a))*1/(1+exp(-a1))  
       #dbeta(grid,5*(0.25+exp(1+a)),20*(1+(location.1[i]/ncol(theta.true)))^{-1})*0.5/(1+exp(a1)) 
     ##generator1
     # density.true<- dbeta(grid,10*(location.1[i]/ncol(theta.true)+1+a),20*(a1^2+2)*(0.25+location.1[i]/ncol(theta.true))^{5/4})*1/(1+exp(a1)) +

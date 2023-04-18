@@ -8,8 +8,8 @@ library(rSPDE)#Separable structure on Dispersion of beta
 library(Rcpp)
 #library(mcmcplots)
 library(reshape2)
-sourceCpp("bivariate_multifunction.cpp")
-
+#sourceCpp("C:\\Users\\indra\\Dropbox\\Debdeep_Neuro\\Paper_final\\code\\Github\\model_multi_function\\Bivariate_multifunction.cpp")
+sourceCpp("/Users/indrajit_ghosh/Dropbox/Debdeep_Neuro/Paper_final/code/Github/model_multi_function/Bivariate_multifunction.cpp")
 # get_sample = function(xi, tau, zeta, omega, X_new, beta, test_knots){
 #   knot_length = length(test_knots)
 #   intsize = 1/(knot_length-1)

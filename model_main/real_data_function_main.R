@@ -116,9 +116,10 @@ for(i in 1:length(location.1))
   # lines(grid, density_mat.NNKCDE[,i],type = "l",col="green",lwd=2,lty=1)
 } 
 par(mfrow=c(1,1))
-plot(run1$LOG_Like.out,type='l', col='blue',lwd=2,ylab='Loglikelihood',xlab='Iteration')
+plot(run1$LOG_Like.out,type='l', col='blue',lwd=2,
+     ylab='Loglikelihood',xlab='Iteration', main = 'MCMC of main_model')
 ####################################
-save("run1", file = "real_data_modified_2.Rdata")
+#save("run1", file = "real_data_modified_2.Rdata")
 
 waic.eval(XI_mat, y_train, X_train, BETA_mat, TAU_mat, test_knots)
 
