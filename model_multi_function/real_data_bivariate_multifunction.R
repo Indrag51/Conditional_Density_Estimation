@@ -9,8 +9,6 @@ library(xgboost)
 set.seed(1616)
 # Covariates = read.table("C:\\Users\\indra\\Dropbox\\Debdeep_Neuro\\Paper_final\\code\\Github\\Covariates.txt")
 # Response = read.table("C:\\Users\\indra\\Dropbox\\Debdeep_Neuro\\Paper_final\\code\\Github\\Response.txt")
-# Covariates = read.table("C:\\Users\\TZKNYG\\Documents\\Density_est\\Covariates.txt")
-# Response = read.table("C:\\Users\\TZKNYG\\Documents\\Density_est\\Response.txt")
 Covariates = read.table("/Users/indrajit_ghosh/Dropbox/Debdeep_Neuro/Paper_final/code/Github/Covariates.txt")
 Response = read.table("/Users/indrajit_ghosh/Dropbox/Debdeep_Neuro/Paper_final/code/Github/Response.txt")
 X<-lapply(Covariates[2:214,], function(x) as.numeric(as.character(x)))
@@ -119,7 +117,7 @@ par(mfrow=c(1,1))
 plot(run1$LOG_Like.out,type='l', col='blue',lwd=2,
      ylab='Loglikelihood',xlab='Iteration', main='MCMC for multi_func')
 ####################################
-#save("run1", file = "real_data_multifunction.Rdata")
+save("run1", file = "real_data_multifunction.Rdata")
 
 waic.eval_model.2(XI_mat, y_train, X_train, BETA_mat, test_knots)
 

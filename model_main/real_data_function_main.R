@@ -50,10 +50,10 @@ tau = matrix(CHOL1%*%rnorm(Nplus^2),nc=Nplus,byrow = T)
 h_loc = hBasis(seq(0,(K1-1),by=1)/(K1-1),test_knots)
 #######################
 #######################
-nmcmc=15000
-burnin=15000
+nmcmc=25000
+burnin=30000
 thining=5
-run1<- get_updates(xi=xi,beta = beta, tau=tau,h_loc=h_loc, X=X,y=y,
+run1<- get_updates(xi=xi,beta = beta, tau=tau,h_loc=h_loc, X=X2,y=y1,
                    test_knots = test_knots,
                    verbose = T, burnin = burnin,nmcmc = nmcmc,thining = thining)
 
@@ -119,7 +119,7 @@ par(mfrow=c(1,1))
 plot(run1$LOG_Like.out,type='l', col='blue',lwd=2,
      ylab='Loglikelihood',xlab='Iteration', main = 'MCMC of main_model')
 ####################################
-#save("run1", file = "real_data_modified_2.Rdata")
+save("run1", file = "real_data_modified_2.Rdata")
 
 waic.eval(XI_mat, y_train, X_train, BETA_mat, TAU_mat, test_knots)
 

@@ -44,10 +44,10 @@ beta<- matrix(as.vector(mvtnorm::rmvnorm(1,mean = rep(0, ncol(X)*ncol(y)),sigma 
 beta<- t(t(beta)/sqrt(colSums(beta * beta)))
 #######################
 #######################
-nmcmc=15000
-burnin=15000
+nmcmc=25000
+burnin=30000
 thining=5
-run1<- get_updates(xi=xi,beta = beta,X=X,y=y,
+run1<- get_updates(xi=xi,beta = beta,X=X2,y=y1,
                    test_knots = test_knots,
                    verbose = T, burnin = burnin,nmcmc = nmcmc,thining = thining)
 
@@ -116,7 +116,8 @@ for(i in 1:length(location.1))
   # lines(grid, density_mat.NNKCDE[,i],type = "l",col="green",lwd=2,lty=1)
 } 
 par(mfrow=c(1,1))
-plot(run1$LOG_Like.out,type='l', col='blue',lwd=2,ylab='Loglikelihood',xlab='Iteration')
+plot(run1$LOG_Like.out,type='l', col='blue',lwd=2,
+     ylab='Loglikelihood',xlab='Iteration', main='MCMC for single_func')
 ####################################
 save("run1", file = "real_data_all_function.Rdata")
 
