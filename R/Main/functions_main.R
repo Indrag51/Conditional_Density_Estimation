@@ -1,94 +1,19 @@
-#library(truncnorm)
 library(mvtnorm)
-#library(spate)
-#library(PrevMap)
 library(fields)
 library(ggplot2)
-library(rSPDE)#Separable structure on Dispersion of beta
+library(rSPDE) #Separable structure on Dispersion of beta
 library(Rcpp)
-#library(mcmcplots)
 library(reshape2)
-sourceCpp("bivariate_function_modified_2.cpp")
+sourceCpp("main.cpp")
 
-# get_sample = function(xi, tau, zeta, omega, X_new, beta, test_knots){
-#   knot_length = length(test_knots)
-#   intsize = 1/(knot_length-1)
-#   p=nrow(beta)
-#   K=ncol(beta)
-#   n=nrow(X_new)/K
-#   location_grid<- seq(0,K-1,by=1)/(K-1)
-#   h_loc<-hBasis(location_grid,test_knots2)
-#   g4<- h_loc%*%omega
-#   beta_tilde <- t(t(beta)/sqrt(colSums(beta * beta)))
-#   beta_tilde_aug<- matrix(as.vector(beta_tilde),nc=1)
-#   Z<- (X_new%*%beta_tilde_aug + 1)/2
-#   H_Z <- PhiBasis(Z,test_knots)
-#   g2<- (zeta[1] + H_Z%*%zeta[2:length(zeta)])
-#   delta<- matrix(xi,nc=1)%*%matrix(g2,nr=1) + matrix(tau,nc=1)%*%matrix(rep(g4,each=n),nr=1)
-#   delta.max = max(delta)
-#   A2 = delta[2:nrow(delta),]
-#   A1 = delta[1:(nrow(delta)-1),]
-#   
-#   A3 = exp(delta.max)*(exp(A2-delta.max)-exp(A1-delta.max))/((A2-A1)/intsize)
-#   
-#   A4 = apply(A3,MARGIN = 2, function(x){cumsum(x)})
-#   
-#   constant = A4[nrow(A4),]
-#   
-#   u = runif(n*K)
-#   
-#   s=rep(0,n*K)
-#   for(i in 1:(n*K)){
-#     alpha = u[i]
-#     const = constant[i]
-#     j_0 = max(which(A4[,i]<alpha * const),0)+1
-#     if(j_0>1)
-#       s[i] = test_knots[j_0+1] + (log((alpha * const - A4[(j_0-1),i]) * 
-#                                         (((A2-A1)/intsize)[j_0,i]) + exp(delta[j_0,i])) - 
-#                                     delta[(j_0+1),i])/(((A2-A1)/intsize)[j_0,i])
-#     else
-#       s[i] = test_knots[j_0+1] + (log((alpha * const) * 
-#                                         (((A2-A1)/intsize)[j_0,i]) + exp(delta[j_0,i])) - 
-#                                     delta[(j_0+1),i])/(((A2-A1)/intsize)[j_0,i])
-#   }
-#   return(s)
-# }
-# 
-# get_plot = function(y_grid = seq(0.0001,1,length.out = 1000), loc_test = 2, xi.truth,
-#                     tau.truth,omega.truth,zeta.truth, theta.true,X_med, test_knots){
-#   if(loc_test>K1) stop("Location is out of bounds!")
-#   knot_length = length(test_knots)
-#   intsize = 1/(knot_length-1)
-#   
-#   g4 = hBasis((loc_test-1)/(K1-1),test_knots2)%*%omega.truth
-#   
-#   if(missing(X_med))
-#     X_med=matrix(apply(X, 2, function(x) {median(x)}),nc=p1)
-#   
-#   Z = (X_med%*%theta.true[,loc_test]+1)/2
-#   g2 = zeta.truth[1] + PhiBasis(Z,test_knots)%*%zeta.truth[2:length(zeta.truth)]
-#   delta<- matrix(xi.truth,nc=1)%*%matrix(g2,nr=1) + matrix(tau.truth,nc=1)%*%matrix(rep(g4,each=nrow(X_med)),nr=1)
-#   delta.max = max(delta)
-#   A2 = delta[2:nrow(delta),]
-#   A1 = delta[1:(nrow(delta)-1),]
-#   
-#   A3 = exp(delta.max)*(exp(A2-delta.max)-exp(A1-delta.max))/((A2-A1)/intsize)
-#   if(nrow(X_med)>1){
-#     A4 = apply(A3,MARGIN = 2, function(x){sum(x)})
-#     constant = sum(A4)
-#   } else {
-#     constant = sum(A3)
-#   }
-#   plot(y_grid, exp(hBasis(y_grid,test_knots)%*%delta)/constant,ylab="f(y|X,s)",xlab="grid")  
-# }
-# 
-Sigma_kron<- function(varphi = 1, rho = 0.5, K, p){
-  H<- exp(-varphi * outer(1:K,1:K,FUN = function(x,y) {return(abs(x-y))}))
+### separable Covariance matrix
+Sigma_kron<- function(tau = 1, rho = 0.5, K, p){
+  H<- exp(-tau * outer(1:K,1:K,FUN = function(x,y) {return((x-y)^2)}))
   T_rho<- (1-rho) * diag(rep(1,p)) + rho * matrix(1,nc=p,nr=p)
   return(kronecker(H,T_rho))
 }
 
-# Matern kernel with smoothness parameter 3/2 or 5/2
+### Matern kernel with smoothness parameter 3/2 or 5/2
 mk = function(d, sigma=1, theta=1, flag=1)
 {
   if(flag == 0){
@@ -130,60 +55,9 @@ Matern_cov = function(test_knots, nu=2.5, sigma=1, theta=0.5){
   return(C)
 }
 
-CovMat.2 = function(knots, sigma = 1, theta = 1, nu = 1.5)
-{
-  Nknots = length(knots)
-  CovMat = matrix(0, Nknots, Nknots)
-  d<-as.matrix(dist(knots, method =  "euclidean", diag = T, upper = T))
-  CovMat<- Matern(d,alpha = sqrt(2*nu)/theta, nu=nu, phi = sigma^2)
-  return(CovMat)
-}
-
-CovMat_monotone = function(knots, sigma = 1, theta = 1, flag = 1)
-{
-  Nknots = length(knots)
-  CovMat = matrix(0, Nknots+1, Nknots+1)
-  d<-as.matrix(dist(knots, method =  "euclidean", diag = T, upper = T))
-  CovMat[1,1]<- mk(d[1,1], sigma, theta, flag)
-  CovMat[1,2:(Nknots+1)]<- sapply(d[1,1:Nknots], FUN = function(x){mkp(x, sigma, theta, flag)})
-  CovMat[2:(Nknots+1),1]<- t(CovMat[1,2:(Nknots+1)])
-  CovMat[2:(Nknots+1),2:(Nknots+1)]<- mkpp(d[1:Nknots,1:Nknots], sigma, theta, flag)
-  return(CovMat)
-}
-
-
-# ESS_xi_tau = function(xi, xi_0, beta, tau, tau_0, logL, H_Z, 
-#                   h_y,X_new,test_knots){
-#   thetamin = 0
-#   thetamax = 2*pi
-#   u = runif(1)
-#   logy = logL + log(u)
-#   theta = runif(1, thetamin, thetamax)
-#   thetamin = theta - 2*pi
-#   thetamax = theta
-#   xistar = xi*cos(theta) + xi_0*sin(theta)
-#   xistar[1,1] = 0
-#   taustar = tau*cos(theta) + tau_0*sin(theta)
-#   # xistar = xistar - t(kronecker(rep(1,knot_length),t(rowMeans(xistar)))) - 
-#   #   kronecker(rep(1,knot_length),t(colMeans(xistar))) + mean(xistar)
-#   logLstar = logcond_likelihood(xistar,beta,taustar,h_loc,X_new,h_y,test_knots,H_Z)$L
-#   
-#   while(logLstar<=logy){
-#     if(theta<0){ thetamin = theta }
-#     else{ thetamax = theta }
-#     theta = runif(1, thetamin, thetamax)
-#     xistar = xi*cos(theta) + xi_0*sin(theta)
-#     xistar[1,1] = 0
-#     taustar = tau*cos(theta) + tau_0*sin(theta)
-#     # xistar = xistar - t(kronecker(rep(1,knot_length),t(rowMeans(xistar)))) - 
-#     #   kronecker(rep(1,knot_length),t(colMeans(xistar))) + mean(xistar)
-#     logLstar = logcond_likelihood(xistar,beta,taustar,h_loc,X_new,h_y,test_knots,H_Z)$L
-#   }
-#   return(list(xi = xistar, tau = taustar, logL = logLstar))       
-# }
-
-ESS_xi = function(xi, xi_0, beta, tau, logL, H_Z, 
-                  h_y,X_new,test_knots){
+### Calculates ESS updates for \xi and \tau
+ESS_xi_tau = function(xi, xi_0, beta, tau, tau_0, logL, H_Z, 
+                      h_y,X_new,test_knots){
   thetamin = 0
   thetamax = 2*pi
   u = runif(1)
@@ -192,48 +66,21 @@ ESS_xi = function(xi, xi_0, beta, tau, logL, H_Z,
   thetamin = theta - 2*pi
   thetamax = theta
   xistar = xi*cos(theta) + xi_0*sin(theta)
-  # xistar = xistar - t(kronecker(rep(1,knot_length),t(rowMeans(xistar)))) - 
-  #   kronecker(rep(1,knot_length),t(colMeans(xistar))) + mean(xistar)
-  logLstar = logcond_likelihood(xistar,beta,tau,h_loc,X_new,h_y,test_knots,H_Z)$L
+  taustar = tau*cos(theta) + tau_0*sin(theta)
+  logLstar = logcond_likelihood(xistar,beta,taustar,h_loc,X_new,h_y,test_knots,H_Z)$L
   
   while(logLstar<=logy){
     if(theta<0){ thetamin = theta }
     else{ thetamax = theta }
     theta = runif(1, thetamin, thetamax)
     xistar = xi*cos(theta) + xi_0*sin(theta)
-    xistar[1,1] = 0
-    # xistar = xistar - t(kronecker(rep(1,knot_length),t(rowMeans(xistar)))) - 
-    #   kronecker(rep(1,knot_length),t(colMeans(xistar))) + mean(xistar)
-    logLstar = logcond_likelihood(xistar,beta,tau,h_loc,X_new,h_y,test_knots,H_Z)$L
-  }
-  return(list(xi = xistar, logL = logLstar))       
-}
-
-ESS_tau = function(xi, beta, tau,tau_0, logL, H_Z,
-                  h_y,X_new,test_knots){
-  thetamin = 0
-  thetamax = 2*pi
-  u = runif(1)
-  logy = logL + log(u)
-  theta = runif(1, thetamin, thetamax)
-  thetamin = theta - 2*pi
-  thetamax = theta
-  taustar = tau*cos(theta) + tau_0*sin(theta)
-  #taustar = taustar - t(kronecker(rep(1,knot_length),t(rowMeans(taustar)))) -
-  #  kronecker(rep(1,knot_length),t(colMeans(taustar))) + mean(taustar)
-  logLstar = logcond_likelihood(xi,beta,taustar,h_loc,X_new,h_y,test_knots,H_Z)$L
-
-  while(logLstar<=logy){
-    if(theta<0){ thetamin = theta }
-    else{ thetamax = theta }
-    theta = runif(1, thetamin, thetamax)
     taustar = tau*cos(theta) + tau_0*sin(theta)
-    # taustar = taustar - t(kronecker(rep(1,knot_length),t(rowMeans(taustar)))) -
-    #   kronecker(rep(1,knot_length),t(colMeans(taustar))) + mean(taustar)
-    logLstar = logcond_likelihood(xi,beta,taustar,h_loc,X_new,h_y,test_knots,H_Z)$L
+    logLstar = logcond_likelihood(xistar,beta,taustar,h_loc,X_new,h_y,test_knots,H_Z)$L
   }
-  return(list(tau = taustar, logL = logLstar))
+  return(list(xi = xistar, tau = taustar, logL = logLstar))       
 }
+
+### Calculates ESS update for \beta
 
 ESS_beta = function(xi, beta, beta_0,tau, logL, 
                     h_y,X_new,test_knots){
@@ -275,16 +122,12 @@ get_updates<- function(xi,beta,tau,h_loc,X,y,nmcmc = 2500,burnin = 2500,
   TAU_mat<- array(0, dim = c(knot_length,knot_length,nmcmc/thining))
   LOG_Like<- rep(0,nmcmc/thining)
   
-  # max_norm<- max(sqrt(rowSums(X*X)))
-  # X<- X/max_norm
   X_new<- kronecker(diag(K),X)
   
   y_new<- matrix(as.vector(y),nc=1)
   h_y<- hBasis(y_new,test_knots)
   intsize<- 1/(length(test_knots)-1)
-  #intsize2<- 1/(length(test_knots2)-1)
-  #test_knots1 = test_knots
-
+  
   logL<- logcond_likelihood_beta(xi = xi,
                                  beta = beta, 
                                  tau = tau,
@@ -306,33 +149,16 @@ get_updates<- function(xi,beta,tau,h_loc,X,y,nmcmc = 2500,burnin = 2500,
     logL = result_beta$logL
     H_Z = result_beta$H_Z
     #####xi_tau_update########
-    # xi_0<- matrix(CHOL1%*%rnorm(knot_length^2),nc=knot_length,byrow = T)
-    # tau_0 =  matrix(CHOL1%*%rnorm(knot_length^2),nc=knot_length,byrow = T)
-    # # xi_0 = xi_0 - t(kronecker(rep(1,knot_length),t(rowMeans(xi_0)))) - 
-    # #   kronecker(rep(1,knot_length),t(colMeans(xi_0))) + mean(xi_0)
-    # result_xi_tau = ESS_xi_tau(xi, xi_0, beta,tau,tau_0, logL, H_Z, 
-    #                    h_y,X_new,test_knots)
-    # xi = result_xi_tau$xi
-    # tau = result_xi_tau$tau
-    # logL = result_xi_tau$logL
-    
     xi_0<- matrix(CHOL1%*%rnorm(knot_length^2),nc=knot_length,byrow = T)
+    tau_0 =  matrix(CHOL1%*%rnorm(knot_length^2),nc=knot_length,byrow = T)
     # xi_0 = xi_0 - t(kronecker(rep(1,knot_length),t(rowMeans(xi_0)))) - 
     #   kronecker(rep(1,knot_length),t(colMeans(xi_0))) + mean(xi_0)
-    result_xi = ESS_xi(xi, xi_0, beta,tau, logL, H_Z, 
-                       h_y,X_new,test_knots)
-    xi = result_xi$xi
-    logL = result_xi$logL
-    #####tau_update#######
-    tau_0 =  matrix(CHOL1%*%rnorm(knot_length^2),nc=knot_length,byrow = T)
-    # tau_0 = tau_0 - t(kronecker(rep(1,knot_length),t(rowMeans(tau_0)))) -
-    #   kronecker(rep(1,knot_length),t(colMeans(tau_0))) + mean(tau_0)
-    result_tau = ESS_tau(xi, beta, tau, tau_0, logL, H_Z,
-                       h_y,X_new,test_knots)
-    tau = result_tau$tau
-    logL = result_tau$logL
-    ######################
-    #print(i)
+    result_xi_tau = ESS_xi_tau(xi, xi_0, beta,tau,tau_0, logL, H_Z, 
+                               h_y,X_new,test_knots)
+    xi = result_xi_tau$xi
+    tau = result_xi_tau$tau
+    logL = result_xi_tau$logL
+
     ######################
     if(i>burnin && i%%thining==0){
       XI_mat[  ,,(i-burnin)/thining]<- xi
